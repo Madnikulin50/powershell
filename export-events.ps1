@@ -162,7 +162,7 @@ MachineName     LogName         TimeCreated             LevelDisplayName    Id  
 [CmdLetBinding(DefaultParameterSetName = "NormalRun")]
 Param(
     [Parameter(Mandatory = $False, Position = 1, ParameterSetName = "NormalRun")] $Computers = ("127.0.0.1"),
-    [Parameter(Mandatory = $False, Position = 2, ParameterSetName = "NormalRun")][ValidateSet("Application","System","Security")] [array]$EventLogName = ('Application', 'System'),
+    [Parameter(Mandatory = $False, Position = 2, ParameterSetName = "NormalRun")][ValidateSet("Application","System","Security")] [array]$EventLogName = ("Security"),
     [Parameter(Mandatory = $False, Position = 3, ParameterSetName = "NormalRun")] [array]$EventID=('All'),
     [Parameter(Mandatory = $False, Position = 4, ParameterSetName = "NormalRun")] [array]$EventSource="All",
     [Parameter(Mandatory = $False, Position = 5, ParameterSetName = "NormalRun")][ValidateSet("All","Information","Warning","Error","Critical", "Verbose")] [array]$EventLevel="All",
@@ -172,9 +172,11 @@ Param(
     [Parameter(Mandatory = $False, Position = 9, ParameterSetName = "NormalRun")] [switch]$DebugScript,
     [Parameter(Mandatory = $false, Position = 10, ParameterSetName = "CheckVersionOnly")][Switch]$CheckVersion
 )
-$logon = ("4776","4672", "4624", "4634", "4625", "4800", "4801")
+$logon = ("4776","4672", "4624", "4634", "4800", "4801")
 
 $EventID = $logon
+
+$GetAdminact = Get-Credential
 
 <# ------- SCRIPT_HEADER (Only Get-Help comments and Param() above this point) ------- #>
 #Initializing a $Stopwatch variable to use to measure script execution
@@ -365,7 +367,7 @@ If (!(IsEmpty $EventLevel)){
 if ($DebugScript){
     $FilterHashProperties
     $Computer = "127.0.0.1"
-    $Events = Get-WinEvent -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop | select MachineName, LogName, TimeCreated, LevelDisplayName, ProviderName, ID, Message
+    $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop | select MachineName, LogName, TimeCreated, LevelDisplayName, ProviderName, ID, Message
     Foreach ($Event in $Events) {
         If ($Event.Message -ne $null){
             $Event.Message = $Event.Message.Replace("`r","#")
@@ -387,11 +389,11 @@ Foreach ($computer in $computers)
     Say $msg
     Try
     {
-        $LastEvent = Get-WinEvent -ComputerName $Computer -Logname 'Application' -oldest -MaxEvents 1
+        $LastEvent = Get-WinEvent -Credential $GetAdminact -ComputerName $Computer -Logname 'Application' -oldest -MaxEvents 1
         Write-host "Event logs on $computer goes as far as $($LastEvent.TimeCreated)"
         Try
         {
-            $Events = Get-WinEvent -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop | select MachineName, LogName, TimeCreated, LevelDisplayName, ProviderName, ID, Message
+            $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop | select MachineName, LogName, TimeCreated, LevelDisplayName, ProviderName, ID, Message
             Foreach ($Event in $Events) {
                 If ($Event.Message -ne $null){
                     $Event.Message = $Event.Message.Replace("`r","#")
