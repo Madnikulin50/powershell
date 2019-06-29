@@ -17,9 +17,7 @@ Write-Host "outfilename: " $outfilename
 
 
 Import-Module ActiveDirectory
-# For Windows 7
-# https://blogs.msdn.microsoft.com/adpowershell/2009/03/24/active-directory-powershell-installation-using-rsat-on-windows-7/
-# Windows Management Framework 5.1
+
 
 #Sets the OU to do the base search for all user accounts, change as required.
 #Simon discovered that some users were missing
