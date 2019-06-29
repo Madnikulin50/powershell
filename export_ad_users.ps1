@@ -1,7 +1,7 @@
 ﻿param (
     [string]$base = 'DC=testdomain,DC=local',
     [string]$server = 'kappa.testdomain.local',
-    [string]$outfile = 'export_users.csv',
+    [string]$outfilename = 'export_users',
     [switch]$force = $false
  )
 
@@ -53,46 +53,13 @@ $AllADUsers = Get-ADUser -server $ADServer `
 -Credential $GetAdminact -searchbase $SearchBase `
 -Filter * -Properties * | Where-Object {$_.info -NE 'Migrated'} #ensures that updated users are never exported.
 
-$AllADUsers |
-Select-Object @{Label = "First Name";Expression = {$_.GivenName}},
-@{Label = "Last Name";Expression = {$_.Surname}},
-@{Label = "DN";Expression = {$_.dn}},
-@{Label = "SN";Expression = {$_.sn}},
-@{Label = "CN";Expression = {$_.cn}},
-@{Label = "Distinguished Name";Expression = {$_.distinguishedName}},
-@{Label = "When Created";Expression = {$_.whenCreated}},
-@{Label = "When Changed";Expression = {$_.whenChanged}},
-@{Label = "Member Of";Expression = {$_.memberOf}},
-@{Label = "Bad Pwd Count";Expression = {$_.badPwdCount}},
-@{Label = "SID";Expression = {$_.objectSid}},
-@{Label = "Display Name";Expression = {$_.DisplayName}},
-@{Label = "Logon Name";Expression = {$_.sAMAccountName}},
-@{Label = "Full address";Expression = {$_.StreetAddress}},
-@{Label = "City";Expression = {$_.City}},
-@{Label = "State";Expression = {$_.st}},
-@{Label = "Post Code";Expression = {$_.PostalCode}},
-@{Label = "Country/Region";Expression = {if (($_.Country -eq 'GB')  ) {'United Kingdom'} Else {''}}},
-@{Label = "Job Title";Expression = {$_.Title}},
-@{Label = "Company";Expression = {$_.Company}},
-@{Label = "Description";Expression = {$_.Description}},
-@{Label = "Department";Expression = {$_.Department}},
-@{Label = "Office";Expression = {$_.OfficeName}},
-@{Label = "Phone";Expression = {$_.telephoneNumber}},
-@{Label = "Photo";Expression = {$_.thumbnailPhoto}},
-@{Label = "Email";Expression = {$_.Mail}},
-@{Label = "UAC";Expression = {$_.userAccountControl}},
-@{Label = "Password Never Expires";Expression = {$_.PasswordNeverExpires}},
-@{Label = "Password Expired";Expression = {$_.PasswordExpired}},
-@{Label = "Does Not Require Pre Auth";Expression = {$_.DoesNotRequirePreAuth}},
-@{Label = "Cannot Change Password";Expression = {$_.CannotChangePassword}},
-@{Label = "Password Not Required";Expression = {$_.PasswordNotRequired}},
-@{Label = "Trusted For Delegation";Expression = {$_.TrustedForDelegation}},
-@{Label = "Trusted To Auth For Delegation";Expression = {$_.TrustedToAuthForDelegation}},
-@{Label = "Manager";Expression = {%{(Get-AdUser $_.Manager -server $ADServer -Properties DisplayName).DisplayName}}},
-@{Label = "Account Status";Expression = {if (($_.Enabled -eq 'TRUE')  ) {'Enabled'} Else {'Disabled'}}}, # the 'if statement# replaces $_.Enabled
-@{Label = "Last Logon Date";Expression = {$_.lastlogondate}} | 
+$users = $AllADUsers | Select-Object "Name", "GivenName", "Surname", "dn", "sn", "cn", "distinguishedName",
+"whenCreated", "whenChanged", "memberOf", "badPwdCount", "objectSid", "DisplayName", 
+"sAMAccountName", "StreetAddress", "City", "state", "PostalCode", "Country", "Title",
+"Company", "Description", "Department", "OfficeName", "telephoneNumber", "thumbnailPhoto",
+"Mail", "userAccountControl", "PasswordNeverExpires", "PasswordExpired", "DoesNotRequirePreAuth",
+"CannotChangePassword", "PasswordNotRequired", "TrustedForDelegation", "TrustedToAuthForDelegation",
+"Manager", "Enabled", "lastlogondate"
 
-#Export CSV report
-
-Export-Csv -Path $csvfile -NoTypeInformation -Encoding UTF8
+$users | ConvertTo-Json | Out-File -FilePath "$($outfilename).json" -Encoding UTF8 -Append
 

@@ -58,5 +58,5 @@ Select-Object "Name", "dn", "sn", "cn", "distinguishedName", "whenCreated", "whe
 "sAMAccountName", "IPv4Address", "IPv6Address", "OperatingSystem", "OperatingSystemHotfix", "OperatingSystemServicePack", "OperatingSystemVersion",
 "PrimaryGroup", "ManagedBy", "userAccountControl", "Enabled", "lastlogondate"
 
-$computers | ConvertTo-Json | Out-File -FilePath "$($outfilename)_computers.json" -Encoding UTF8 -Append
+$computers | ConvertTo-Json | Out-File -FilePath "$($outfilename).json" -Encoding UTF8 -Append
 $computers | ForEach {Export-Shares $_.Name}
