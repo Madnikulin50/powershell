@@ -10,7 +10,7 @@
 
 ```
 
-powershell.exe -ExecutionPolicy Bypass -Command "./export-ad.ps1" -base DC=testdomain``,DC=local -server dc.acme.local -outfilename export-ad
+powershell.exe -ExecutionPolicy Bypass -Command "./export-ad.ps1" -base DC=acme``,DC=local -server dc.acme.local -outfilename export-ad
 
 ```
 Параметры:
