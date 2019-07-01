@@ -17,6 +17,7 @@
 | export-events             | [DEV] Экспорт информации о событиях из Windows EventLog                 |
 | export_mb_folders         | [DEV] Экспорт почтовых ящиков из Exchange                               |
 | explore-folder            | Сбор информации о файлах                                                |
+| enum-ad-shares            | Сбор информации о папке                                                 |
 
 
 [DEV] -Находятся в процессе разработки
