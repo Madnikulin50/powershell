@@ -1,7 +1,7 @@
 
 [CmdLetBinding(DefaultParameterSetName = "NormalRun")]
 Param(
-    [Parameter(Mandatory = $False, Position = 1, ParameterSetName = "NormalRun")] $computers = ("192.168.0.172"),
+    [Parameter(Mandatory = $False, Position = 1, ParameterSetName = "NormalRun")] $computers = ("acme.local"),
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $outfilename = "events",
     [Parameter(Mandatory = $False, Position = 10, ParameterSetName = "NormalRun")] [ValidateSet("All","Logon","Service","User","Computer", "Clean", "File", "MSSQL", "RAS", "USB")] [array]$target="All"
 )
@@ -116,11 +116,6 @@ function ExportFor($eid) {
             Try
             {
                 $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop | select MachineName, LogName, TimeCreated, LevelDisplayName, ProviderName, ID, Message
-                Foreach ($Event in $Events) {
-                    If ($Event.Message -ne $null){
-                        $Event.Message = $Event.Message.Replace("`r","#")
-                    }
-                }
                 Write-host "Found at least $($Events.count) events ! Here are the $NumberOfLastEventsToGet last ones :"
                 $Events | Select -first $NumberOfLastEventsToGet
                 $Events | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append 
