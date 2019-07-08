@@ -29,15 +29,15 @@ Function Get-FileHashTSO([String] $FileName,$HashName = "SHA1")
 
 #powershell.exe -ExecutionPolicy Bypass -Command "./explore_share.ps1" -outfilename explore_folder
 
-[System.Reflection.Assembly]::LoadFrom('d:/t2/research/Interop.Dsofile.dll')
-function Get-Summary([string]$file) {
-    $oled = New-Object -COM DSOFile.OleDocumentProperties
-    $oled.Open($file, $true, [DSOFile.dsoFileOpenOptions]::dsoOptionDefault)
-    $spd =  $oled.SummaryProperties
+#[System.Reflection.Assembly]::LoadFrom('d:/t2/research/Interop.Dsofile.dll')
+#function Get-Summary([string]$file) {
+#    $oled = New-Object -COM DSOFile.OleDocumentProperties
+#    $oled.Open($file, $true, [DSOFile.dsoFileOpenOptions]::dsoOptionDefault)
+#    $spd =  $oled.SummaryProperties
     #return $spd
-    $oled.close()
-    return $spd # return here instead
-}
+#    $oled.close()
+#    return $spd # return here instead
+#}
 
 Get-ChildItem $folder -Recurse | 
 Foreach-Object {
