@@ -29,9 +29,19 @@ Function Get-FileHashTSO([String] $FileName,$HashName = "SHA1")
 
 #powershell.exe -ExecutionPolicy Bypass -Command "./explore_share.ps1" -outfilename explore_folder
 
+[System.Reflection.Assembly]::LoadFrom('d:/t2/research/Interop.Dsofile.dll')
+function Get-Summary([string]$file) {
+    $oled = New-Object -COM DSOFile.OleDocumentProperties
+    $oled.Open($file, $true, [DSOFile.dsoFileOpenOptions]::dsoOptionDefault)
+    $spd =  $oled.SummaryProperties
+    #return $spd
+    $oled.close()
+    return $spd # return here instead
+}
+
 Get-ChildItem $folder -Recurse | 
 Foreach-Object {
-    $cur = $_ | Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode"
+    $cur = $_ | Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length"
     Write-Host $_.FullName
     $acl = Get-Acl $_.FullName | Select-Object -Property "Owner", "Group", "AccessToString", "Sddl"
     $path = $_.FullName
@@ -54,5 +64,14 @@ Foreach-Object {
     
     $cur | Add-Member -MemberType NoteProperty -Name ACL -Value $acl -Force
     $cur | Add-Member -MemberType NoteProperty -Name Hash -Value $hash -Force
+    Try
+    {
+        #$summary = Get-Summary $path
+        #$cur | Add-Member -MemberType NoteProperty -Name Summary -Value $summary -Force
+    }
+    Catch {
+        Write-Host $PSItem.Exception.Message       
+    }
+
     $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append    
 } 
