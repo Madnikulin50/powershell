@@ -1,6 +1,6 @@
 param (
-    [string]$base = 'DC=testdomain,DC=local',
-    [string]$server = 'kappa.testdomain.local',
+    [string]$base = 'DC=acme,DC=local',
+    [string]$server = 'kappa.acme.local',
     [string]$outfilename = 'export_ad',
     [switch]$force = $false
  )
@@ -25,6 +25,11 @@ if (Test-Path $outfile)
 
 $GetAdminact = Get-Credential
 
+$domain = Get-ADDomain -server $server -Credential $GetAdminact
+
+Write-Host "domain: " $domain.NetBIOSName
+
+$domain | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 
 Get-ADGroup -server $server `
 -Credential $GetAdminact -searchbase $SearchBase `
@@ -33,7 +38,9 @@ Get-ADGroup -server $server `
 "sAMAccountName", "StreetAddress", "City", "state", "PostalCode", "Country", "Title",
 "Company", "Description", "Department", "OfficeName", "telephoneNumber", "thumbnailPhoto",
 "Mail", "userAccountControl", "Manager", "ObjectClass" | Foreach-Object {
-  $cur = $_  
+  $cur = $_ 
+  $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
+  $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
   $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 }
 
@@ -49,6 +56,10 @@ Get-ADUser -server $server `
 "CannotChangePassword", "PasswordNotRequired", "TrustedForDelegation", "TrustedToAuthForDelegation",
 "Manager", "Enabled", "lastlogondate", "ObjectClass" | Foreach-Object {
   $cur = $_  
+  $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
+
+  $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
+
   $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 }
 
@@ -59,7 +70,9 @@ Get-ADComputer -Filter * -server $server `
 Select-Object "Name", "dn", "sn", "cn", "distinguishedName", "whenCreated", "whenChanged", "memberOf", "badPwdCount", "objectSid", "DisplayName", 
 "sAMAccountName", "IPv4Address", "IPv6Address", "OperatingSystem", "OperatingSystemHotfix", "OperatingSystemServicePack", "OperatingSystemVersion",
 "PrimaryGroup", "ManagedBy", "userAccountControl", "Enabled", "lastlogondate", "ObjectClass" | Foreach-Object {
-  $cur = $_  
+  $cur = $_
+  $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
+  $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force  
   $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 }
 
