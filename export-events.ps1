@@ -115,10 +115,17 @@ function ExportFor($eid) {
             Write-host "Event logs on $computer goes as far as $($LastEvent.TimeCreated)"
             Try
             {
-                $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop | select MachineName, LogName, TimeCreated, LevelDisplayName, ProviderName, ID, Message
+                $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop 
+                
                 Write-host "Found at least $($Events.count) events ! Here are the $NumberOfLastEventsToGet last ones :"
                 $Events | Select -first $NumberOfLastEventsToGet
-                $Events | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append 
+                $Events | Foreach-Object {
+                    $cur = $_ 
+                    $xml = $_.ToXml()
+                    $cur | Add-Member -MemberType NoteProperty -Name XML -Value $xml -Force
+                    $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append 
+                }
+                
             }
             Catch
             {
