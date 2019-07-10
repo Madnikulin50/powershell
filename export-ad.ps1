@@ -1,6 +1,6 @@
 param (
-    [string]$base = 'DC=testdomain,DC=local',
-    [string]$server = 'kappa.testdomain.local',
+    [string]$base = 'DC=acme,DC=local',
+    [string]$server = 'acme.local',
     [string]$outfilename = 'export_ad',
     [switch]$force = $false
  )
