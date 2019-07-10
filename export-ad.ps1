@@ -1,6 +1,6 @@
 param (
-    [string]$base = 'DC=acme,DC=local',
-    [string]$server = 'kappa.acme.local',
+    [string]$base = 'DC=testdomain,DC=local',
+    [string]$server = 'kappa.testdomain.local',
     [string]$outfilename = 'export_ad',
     [switch]$force = $false
  )
@@ -65,11 +65,13 @@ Get-ADUser -server $server `
 
 Write-Host "users export finished to: " $outfile
 
-Get-ADComputer -Filter * -server $server `
--Credential $GetAdminact -searchbase $SearchBase ` |
-Select-Object "Name", "dn", "sn", "cn", "distinguishedName", "whenCreated", "whenChanged", "memberOf", "badPwdCount", "objectSid", "DisplayName", 
-"sAMAccountName", "IPv4Address", "IPv6Address", "OperatingSystem", "OperatingSystemHotfix", "OperatingSystemServicePack", "OperatingSystemVersion",
-"PrimaryGroup", "ManagedBy", "userAccountControl", "Enabled", "lastlogondate", "ObjectClass" | Foreach-Object {
+
+# | Select-Object "Name", "dn", "sn", "cn", "distinguishedName", "whenCreated", "whenChanged", "memberOf", "badPwdCount", "objectSid", "DisplayName", 
+#"sAMAccountName", "IPv4Address", "IPv6Address", "OperatingSystem", "OperatingSystemHotfix", "OperatingSystemServicePack", "OperatingSystemVersion",
+#"PrimaryGroup", "ManagedBy", "userAccountControl", "Enabled", "lastlogondate", "ObjectClass"
+
+Get-ADComputer -Filter * -Properties * -server $server  `
+-Credential $GetAdminact -searchbase $SearchBase | Foreach-Object {
   $cur = $_
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
   $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force  
