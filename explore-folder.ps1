@@ -69,7 +69,7 @@ function Get-MKVS-XlsText([String] $FileName) {
             #Write-Host "sheet: " $sh.Name            
             $endRow = $sh.UsedRange.SpecialCells(11).Row
             $endCol = $sh.UsedRange.SpecialCells(11).Column
-            #Write-Host "dim: " $endRow $endCol
+            Write-Host "dim: " $endRow $endCol
             for ($r = 1; $r -le $endRow; $r++) {
                 for ($c = 1; $c -le $endCol; $c++) {
                     $t = $sh.Cells($r, $c).Text
