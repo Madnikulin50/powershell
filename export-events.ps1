@@ -60,7 +60,6 @@ $ErrorActionPreference = "SilentlyContinue"
 <# -------------------------- DECLARATIONS -------------------------- #>
 $FilterHashProperties = $null
 $Answer = ""
-$Events4All = @()
 <# /DECLARATIONS #>
 <# -------------------------- FUNCTIONS -------------------------- #>
 function IsEmpty($Param){
@@ -109,15 +108,27 @@ function ExportFor($eid) {
     {
         $msg = "Checking Computer $Computer"
         Write-host $msg -BackgroundColor yellow -ForegroundColor Blue
-        Try
+        
+        try
         {
-            $LastEvent = Get-WinEvent -Credential $GetAdminact -ComputerName $Computer -Logname 'Application' -oldest -MaxEvents 1
-            Write-host "Event logs on $computer goes as far as $($LastEvent.TimeCreated)"
-            Try
-            {
-                $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -MaxEvents $NumberOfLastEventsToGet -Computer $Computer -ErrorAction stop 
+            $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -Computer $Computer -ErrorAction SilentlyContinue 
                 
-                Write-host "Found at least $($Events.count) events ! Here are the $NumberOfLastEventsToGet last ones :"
+            Write-host "Found at least $($Events.count) events ! Here are the $NumberOfLastEventsToGet last ones :"
+            $Events | Select -first $NumberOfLastEventsToGet
+            $Events | Foreach-Object {
+                $cur = $_ 
+                $xml = $_.ToXml()
+                $cur | Add-Member -MemberType NoteProperty -Name XML -Value $xml -Force
+                $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append 
+            }
+                
+        }
+        Catch {
+            $msg = "Error accessing Event Logs of $computer by Get-WinEvent + $PSItem.Exception.InnerExceptionMessage"
+            Write-Host $msg -ForegroundColor Red
+            try {    
+                $Events = get-eventlog -logname $EventLogName -newest 10000 -Computer $Computer
+                $Events | Where-Object {$eid -contains $_.EventID}
                 $Events | Select -first $NumberOfLastEventsToGet
                 $Events | Foreach-Object {
                     $cur = $_ 
@@ -127,24 +138,16 @@ function ExportFor($eid) {
                 }
                 
             }
-            Catch
-            {
-                Write-Host "No such events with EventID = $($FilterHashProperties.ID) in the $($FilterHashProperties.LogName) event log on this computer..." -ForegroundColor Green
+            Catch {
+                $msg = "Error accessing Event Logs of $computer by get-eventlog + $PSItem.Exception.InnerExceptionMessage"
+                Write-Host $msg -ForegroundColor Red
             }
-            Finally
-            {
-                Write-Host "OK_"
-            }
+
         }
-        Catch
-        {
-            $msg = "Error accessing Event Logs of $computer + $PSItem.Exception.InnerExceptionMessage"
-            Write-Host $msg -ForegroundColor Red
+        Finally {
+            Write-Host "OK_"
         }
-    }
-    
-    $msg = "Found $($Events4all.count) Events in total ..."
-    Write-host $msg -BackgroundColor blue -ForegroundColor yellow    
+    }    
 }
 
 
