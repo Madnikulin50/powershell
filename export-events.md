@@ -43,3 +43,12 @@ powershell.exe -ExecutionPolicy Bypass -Command "./export-events.ps1" -Computers
 | USB              | События работы с USB устройствами                                                                                |
 
 После запуска будет выведено окно логина на компьютер, нужно ввести логин-пароль пользователя имеющего право читать журналы событий
+
+
+### Настройка журналирования файловых операций
+
+https://www.varonis.com/blog/windows-file-system-auditing/
+
+### Настройка аудита печати
+
+https://mikefrobbins.com/2017/08/10/powershell-one-liner-to-audit-print-jobs-on-a-windows-based-print-server/
