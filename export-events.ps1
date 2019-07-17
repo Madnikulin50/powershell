@@ -8,7 +8,7 @@ Param(
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $pwd = "",
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $start = "",
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $fwd = "",
-    [Parameter(Mandatory = $False, Position = 10, ParameterSetName = "NormalRun")] [ValidateSet("All","Logon","Service","User","Computer", "Clean", "File", "MSSQL", "RAS", "USB", "Printer")] [array]$target="All"
+    [Parameter(Mandatory = $False, Position = 10, ParameterSetName = "NormalRun")] [ValidateSet("All","Logon","Service","User","Computer", "Clean", "File", "MSSQL", "RAS", "USB", "Printer", "Sysmon", "TS")] [array]$target="All"
 )
 
 
@@ -86,7 +86,7 @@ function ExportFor($eid, $ln, $type) {
         $starttime = [datetime]::ParseExact($start,'yyyyMMddHHmmss', $null)
         $FilterHashProperties.Add("startTime", $starttime)
     }
-    
+
     If (!(IsEmpty $eid)){
         $FilterHashProperties.Add("ID",$eid)
     }
@@ -147,9 +147,9 @@ Foreach ($i in $target)
         ExportFor ("4776","4672", "4624", "4634", "4800", "4801") "Security" "logon"
     }
 
-    #if ($i -eq "Service" -or $i -eq "All") {
-    #    ExportFor ("7036","7031") "System" "service"
-    #}
+    if ($i -eq "Service" -or $i -eq "All") {
+        ExportFor ("7036","7031") "System" "service"
+    }
 
     if ($i -eq "User" -or $i -eq "All") {
         ExportFor ("4720", "4722", "4723", "4724", "4725", "4726", "4738", "4740", "4767", "4780", "4794", "5376", "5377") "Security" "user"
@@ -182,7 +182,13 @@ Foreach ($i in $target)
 
     if ($i -eq "USB" -or $i -eq "All") {
         ExportFor ("2003") "Microsoft-Windows-DriverFrameworks-UserMode/Operational" "usb"
+    }
+    if ($i -eq "Sysmon" -or $i -eq "All") {
+        ExportFor ("1", "3", "5", "11", "12", "13", "14") "Microsoft-Windows-Sysmon/Operational" "sysmon"
     }    
+    if ($i -eq "TS" -or $i -eq "All") {
+        ExportFor ("21", "24") "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" "ts"
+    }
 }
 
 
