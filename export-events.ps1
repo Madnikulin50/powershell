@@ -3,13 +3,19 @@
 Param(
     [Parameter(Mandatory = $False, Position = 1, ParameterSetName = "NormalRun")] $computers = ("acme.local"),
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $outfilename = "events",
-    [Parameter(Mandatory = $False, Position = 10, ParameterSetName = "NormalRun")] [ValidateSet("All","Logon","Service","User","Computer", "Clean", "File", "MSSQL", "RAS", "USB")] [array]$target="All"
+    [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $Count = 3000,
+    [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $user = "",
+    [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $pwd = "",
+    [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $start = "",
+    [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $fwd = "",
+    [Parameter(Mandatory = $False, Position = 10, ParameterSetName = "NormalRun")] [ValidateSet("All","Logon","Service","User","Computer", "Clean", "File", "MSSQL", "RAS", "USB", "Printer")] [array]$target="All"
 )
 
-$EventSource="All"
+
 $EventLevel="All"
-$NumberOfLastEventsToGet = 300
+$NumberOfLastEventsToGet = $Count
 $EventLogName = ("Security")
+
 
 
 $LogDate = get-date -f yyyyMMddhhmm 
@@ -28,23 +34,12 @@ if (Test-Path $outfile)
 }
 
 
-$id_logon = ("4776","4672", "4624", "4634", "4800", "4801")
-$id_service = ("7036","7031")
-$id_usermagement = ("4720", "4722", "4723", "4724", "4725", "4726", "4738", "4740", "4767", "4780", "4794", "5376", "5377")
-$id_computermagement = ("4720", "4722", "4725", "4726", "4738", "4740", "4767")
-$id_clean = ("1102")
-$id_file = ("4656", "4663", "4660", "4624")
-$id_mssql = ("18456")
-$id_printer = ("307")
-$id_ras = ("20249", "20250", "20253", "20255", "20258", "20266", "20271", "20272")
-$id_usb = ("2003")
-
-      
-
-
-
-
-$GetAdminact = Get-Credential
+if ($user -ne "") {
+    $pass = ConvertTo-SecureString -AsPlainText $pwd -Force    
+    $GetAdminact = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $user, $pass    
+} else {
+    $GetAdminact = Get-Credential
+}
 
 <# ------- SCRIPT_HEADER (Only Get-Help comments and Param() above this point) ------- #>
 #Initializing a $Stopwatch variable to use to measure script execution
@@ -74,33 +69,29 @@ function IsEmpty($Param){
 <# /FUNCTIONS #>
 <# -------------------------- EXECUTIONS -------------------------- #>
 Write-Host "Starting script..."
-function ExportFor($eid) {
+function ExportFor($eid, $ln, $type) {
+
+    if ($fwd -ne "") {
+        $ln = $fwd
+    }        
+
+    Write-Host "logname:" $ln
+    Write-Host "type: " $type
+
     $FilterHashProperties = @{
-        LogName = $EventLogName
+        LogName = $ln
     }
     
-    If (!(IsEmpty $EventSource)){
-        $FilterHashProperties.Add('ProviderName',$EventSource)
+    if ($start -ne "") {
+        $starttime = [datetime]::ParseExact($start,'yyyyMMddHHmmss', $null)
+        $FilterHashProperties.Add("startTime", $starttime)
     }
     
     If (!(IsEmpty $eid)){
         $FilterHashProperties.Add("ID",$eid)
     }
-    
-    If (!(IsEmpty $EventLevel)){
-        for ($i=0;$i -lt $($EventLevel.count);$i++){
-            $EventLevel[$i] = switch ($EventLevel[$i]) {
-                "LogAlways" {0}
-                "Critical" {1}
-                "Error" {2}
-                "Warning" {3}
-                "Information" {4}
-                "Verbose" {5}
-            }
-        }
-        $FilterHashProperties.Add('Level',$EventLevel)
-    }
-    
+ 
+      
     $msg = ("About to collect events on $($computers.count)") + $(If ($($computers.count) -gt 1){" machines"}Else{" machine"})
     Write-host $msg
     
@@ -112,15 +103,14 @@ function ExportFor($eid) {
         try
         {
             $Events = Get-WinEvent -Credential $GetAdminact -FilterHashtable $FilterHashProperties -Computer $Computer -ErrorAction SilentlyContinue 
-                
-            Write-host "Found at least $($Events.count) events ! Here are the $NumberOfLastEventsToGet last ones :"
-            $Events | Select -first $NumberOfLastEventsToGet
+            $Events | Select-Object -first $NumberOfLastEventsToGet
             $Events | Foreach-Object {
                 $cur = $_ 
                 $xml = $_.ToXml()
                 $cur | Add-Member -MemberType NoteProperty -Name XML -Value $xml -Force
                 $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append 
             }
+            Write-host "Found at least $($Events.count) events ! Here are the $NumberOfLastEventsToGet last ones"
                 
         }
         Catch {
@@ -129,7 +119,7 @@ function ExportFor($eid) {
             try {    
                 $Events = get-eventlog -logname $EventLogName -newest 10000 -Computer $Computer
                 $Events | Where-Object {$eid -contains $_.EventID}
-                $Events | Select -first $NumberOfLastEventsToGet
+                $Events | Select-Object -first $NumberOfLastEventsToGet
                 $Events | Foreach-Object {
                     $cur = $_ 
                     $xml = $_.ToXml()
@@ -154,49 +144,44 @@ function ExportFor($eid) {
 Foreach ($i in $target)
 {
     if ($i -eq "Logon" -or $i -eq "All") {
-        Write-Host "EventID: " $id_logon
-        ExportFor($id_logon)                
+        ExportFor ("4776","4672", "4624", "4634", "4800", "4801") "Security" "logon"
     }
 
-    if ($i -eq "Service" -or $i -eq "All") {
-        Write-Host "EventID: " $id_service
-        ExportFor($id_service)
-    }
+    #if ($i -eq "Service" -or $i -eq "All") {
+    #    ExportFor ("7036","7031") "System" "service"
+    #}
 
     if ($i -eq "User" -or $i -eq "All") {
-        Write-Host "EventID: " $id_usermagement
-        ExportFor($id_usermagement)
+        ExportFor ("4720", "4722", "4723", "4724", "4725", "4726", "4738", "4740", "4767", "4780", "4794", "5376", "5377") "Security" "user"
     }
 
     if ($i -eq "Computer" -or $i -eq "All") {
-        Write-Host "EventID: " $id_computermagement
-        ExportFor($id_computermagement)
+        ExportFor ("4720", "4722", "4725", "4726", "4738", "4740", "4767") "Security" "user"
     }
 
     if ($i -eq "Clean" -or $i -eq "All") {
         
         Write-Host "EventID: " $id_clean
-        ExportFor($id_clean)
+        ExportFor ("1102") "Security" "clean"
     }
 
     if ($i -eq "File" -or $i -eq "All") {
-        Write-Host "EventID: " $id_file
-        ExportFor($id_file)
+        ExportFor("4656", "4663", "4660", "4658") "Security" "file"
+    }
+    if ($i -eq "Printer" -or $i -eq "All") {
+        ExportFor ("307")  ("Microsoft-Windows-PrintService/Operational") "printer"
     }
 
     if ($i -eq "MSSQL" -or $i -eq "All") {
-        Write-Host "EventID: " $id_mssql
-        ExportFor($id_mssql)
+        ExportFor ("18456")  "Application" "mssql"
     }
 
     if ($i -eq "RAS" -or $i -eq "All") {
-        Write-Host "EventID: " $id_ras
-        ExportFor($id_ras)
+        ExportFor ("20249", "20250", "20253", "20255", "20258", "20266", "20271", "20272") "RemoteAccess/Operational" "ras"
     }
 
     if ($i -eq "USB" -or $i -eq "All") {
-        Write-Host "EventID: " $id_usb
-        ExportFor($id_usb)
+        ExportFor ("2003") "Microsoft-Windows-DriverFrameworks-UserMode/Operational" "usb"
     }    
 }
 
