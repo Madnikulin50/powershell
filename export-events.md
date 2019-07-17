@@ -46,6 +46,8 @@ powershell.exe -ExecutionPolicy Bypass -Command "./export-events.ps1" -Computers
 | MSSQL            | События Microsoft SQL Server                                                                                     |
 | RAS              | События удаленного подключения пользователей                                                                     |
 | USB              | События работы с USB устройствами                                                                                |
+| Sysmon           | События от sysmon                                                                                                |
+| TS               | События работы TerminalServices                                                                                  |
 
 После запуска будет выведено окно логина на компьютер, нужно ввести логин-пароль пользователя имеющего право читать журналы событий
 
