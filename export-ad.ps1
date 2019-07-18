@@ -2,6 +2,8 @@ param (
     [string]$base = 'DC=acme,DC=local',
     [string]$server = 'acme.local',
     [string]$outfilename = 'export_ad',
+    [string]$user = "",
+    [string]$pwd = "",
     [switch]$force = $false
  )
 
@@ -23,7 +25,12 @@ if (Test-Path $outfile)
 }
 
 
-$GetAdminact = Get-Credential
+if ($user -ne "") {
+    $pass = ConvertTo-SecureString -AsPlainText $pwd -Force    
+    $GetAdminact = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $user, $pass    
+} else {
+    $GetAdminact = Get-Credential
+}
 
 $domain = Get-ADDomain -server $server -Credential $GetAdminact
 
@@ -58,6 +65,10 @@ Get-ADUser -server $server `
   $cur = $_  
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
 
+  if ($cur.thumbnailPhoto -ne $null) {
+    $cur.thumbnailPhoto =[Convert]::ToBase64String($cur.thumbnailPhoto)
+  }
+
   $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
 
   $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
@@ -79,3 +90,5 @@ Get-ADComputer -Filter * -Properties * -server $server  `
 }
 
 Write-Host "computers export finished to: " $outfile
+
+
