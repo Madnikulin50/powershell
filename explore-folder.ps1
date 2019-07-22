@@ -1,6 +1,9 @@
 param (
     [string]$folder = "z:\test\Files_DB",
     [string]$outfilename = "explore-folder",
+    [string]$base = "",
+    [string]$server = "",
+    [int]$hashlen = 1048576,
     [switch]$force = $false,
     [switch]$extruct = $false
  )
@@ -21,11 +24,23 @@ if (Test-Path $outfile)
 
 Function Get-MKVS-FileHash([String] $FileName,$HashName = "SHA1") 
 {
-  $FileStream = New-Object System.IO.FileStream($FileName,"Open", "Read") 
-  $StringBuilder = New-Object System.Text.StringBuilder 
-  [System.Security.Cryptography.HashAlgorithm]::Create($HashName).ComputeHash($FileStream)|%{[Void]$StringBuilder.Append($_.ToString("x2"))} 
-  $FileStream.Close() 
-  $StringBuilder.ToString() 
+    if ($hashlen -eq 0) {
+        $FileStream = New-Object System.IO.FileStream($FileName,"Open", "Read") 
+        $StringBuilder = New-Object System.Text.StringBuilder 
+        [System.Security.Cryptography.HashAlgorithm]::Create($HashName).ComputeHash($FileStream)|%{[Void]$StringBuilder.Append($_.ToString("x2"))} 
+        $FileStream.Close() 
+        $StringBuilder.ToString()
+    } else {
+        $StringBuilder = New-Object System.Text.StringBuilder 
+        $binaryReader = New-Object System.IO.BinaryReader(New-Object System.IO.FileStream($FileName,"Open", "Read"))
+       
+        $bytes = $binaryReader.ReadBytes($hashlen)
+        $binaryReader.Close() 
+        if ($bytes -ne 0) {
+            [System.Security.Cryptography.HashAlgorithm]::Create($HashName).ComputeHash($bytes)| ForEach-Object { [Void]$StringBuilder.Append($_.ToString("x2")) }
+        }
+        $StringBuilder.ToString()
+    }
 }
 
 function Get-MKVS-DocText([String] $FileName) {
@@ -35,16 +50,20 @@ function Get-MKVS-DocText([String] $FileName) {
     $text = ""
     Try
     {
-        $Document = $Word.Documents.Open($FileName)
-       
-        $Document.Paragraphs | ForEach-Object {
-            $text += $_.Range.Text
+        $catch = $false
+        Try{
+            $Document = $Word.Documents.Open($FileName, $null, $null, $null, "")
         }
-        $Document.Close()
-        $Word.Quit()
-        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($Word)
-        Remove-Variable Word        
-        return $text
+        Catch {
+            Write-Host 'Doc is password protected.'
+            $catch = $true
+        }
+        if ($catch -eq $false) {
+            $Document.Paragraphs | ForEach-Object {
+                $text += $_.Range.Text
+            }
+            
+        }
     }
     Catch {
         Write-Host $PSItem.Exception.Message
@@ -53,7 +72,10 @@ function Get-MKVS-DocText([String] $FileName) {
         [System.Runtime.Interopservices.Marshal]::ReleaseComObject($Word)
         Remove-Variable Word
     }
-    
+    $Document.Close()
+    $Word.Quit()
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($Word)
+    Remove-Variable Word        
     return $text
 }
 
@@ -62,19 +84,29 @@ function Get-MKVS-XlsText([String] $FileName) {
     $excel.Visible = $false
     $excel.DisplayAlerts = 0
     $text = ""
+    $password
     Try    
     {
-        $wb = $excel.workbooks.open($FileName)
-        foreach ($sh in $wb.Worksheets) {
-            #Write-Host "sheet: " $sh.Name            
-            $endRow = $sh.UsedRange.SpecialCells(11).Row
-            $endCol = $sh.UsedRange.SpecialCells(11).Column
-            Write-Host "dim: " $endRow $endCol
-            for ($r = 1; $r -le $endRow; $r++) {
-                for ($c = 1; $c -le $endCol; $c++) {
-                    $t = $sh.Cells($r, $c).Text
-                    $text += $t
-                    #Write-Host "text cel: " $r $c $t
+        $catch = $false
+        Try{
+            $wb =$excel.Workbooks.open($path, 0, 0, 5, "")
+        }
+        Catch{
+            Write-Host 'Book is password protected.'
+            $catch = $true
+        }
+        if ($catch -eq $false) {
+            foreach ($sh in $wb.Worksheets) {
+                #Write-Host "sheet: " $sh.Name            
+                $endRow = $sh.UsedRange.SpecialCells(11).Row
+                $endCol = $sh.UsedRange.SpecialCells(11).Column
+                Write-Host "dim: " $endRow $endCol
+                for ($r = 1; $r -le $endRow; $r++) {
+                    for ($c = 1; $c -le $endCol; $c++) {
+                        $t = $sh.Cells($r, $c).Text
+                        $text += $t
+                        #Write-Host "text cel: " $r $c $t
+                    }
                 }
             }
         }
@@ -123,52 +155,75 @@ function Get-MKVS-FileText([String] $FileName, [String] $Extension) {
 #    return $spd # return here instead
 #}
 
-Get-ChildItem $folder -Recurse | 
-Foreach-Object {
-    $cur = $_ | Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length"
+function inspectFolder($f) {
+    $cur = Get-Item $f | 
+    Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length" |
     Write-Host $_.FullName
     $acl = Get-Acl $_.FullName | Select-Object -Property "Owner", "Group", "AccessToString", "Sddl"
-    $path = $_.FullName
-    $ext = $_.Extension
-    
-    
-    Try
-    {
-        $hash = Get-MKVS-FileHash $path
-    }
-    Catch {
-        Write-Host $PSItem.Exception.Message
-        Try
-        {
-            $hash = Get-FileHash $path | Select-Object -Property "Hash"
-        }
-        Catch {
-            Write-Host $PSItem.Exception.Message
-        }
-    }
-
-    if ($extruct -eq $true)
-    {
-        Try
-        {
-            $text =  Get-MKVS-FileText $path $ext
-            $cur | Add-Member -MemberType NoteProperty -Name Text -Value $text -Force
-        }
-        Catch {
-            Write-Host $PSItem.Exception.Message       
-        }    
-    }
-    
     $cur | Add-Member -MemberType NoteProperty -Name ACL -Value $acl -Force
-    $cur | Add-Member -MemberType NoteProperty -Name Hash -Value $hash -Force
-    Try
-    {
-        #$summary = Get-Summary $path
-        #$cur | Add-Member -MemberType NoteProperty -Name Summary -Value $summary -Force
-    }
-    Catch {
-        Write-Host $PSItem.Exception.Message       
+    $cur | Add-Member -MemberType NoteProperty -Name RootAudit -Value $true -Force
+    $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
+
+    Get-ChildItem $f -Recurse | 
+    Foreach-Object {
+        $cur = $_ | Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length"
+        Write-Host $cur.FullName
+        $acl = Get-Acl $cur.FullName | Select-Object -Property "Owner", "Group", "AccessToString", "Sddl"
+        $path = $cur.FullName
+        $ext = $cur.Extension
+        
+        if ($cur.PSIsContainer -eq $false) {
+            Try
+            {
+                $hash = Get-MKVS-FileHash $path
+            }
+            Catch {
+                Write-Host $PSItem.Exception.Message
+                Try
+                {
+                    $hash = Get-FileHash $path | Select-Object -Property "Hash"
+                }
+                Catch {
+                    Write-Host $PSItem.Exception.Message
+                }
+            }
+
+            if ($extruct -eq $true)
+            {
+                Try
+                {
+                    $text =  Get-MKVS-FileText $path $ext
+                    $cur | Add-Member -MemberType NoteProperty -Name Text -Value $text -Force
+                }
+                Catch {
+                    Write-Host $PSItem.Exception.Message       
+                }    
+            }
+            $cur | Add-Member -MemberType NoteProperty -Name Hash -Value $hash -Force
+        }
+        
+        $cur | Add-Member -MemberType NoteProperty -Name ACL -Value $acl -Force        
+        
+        $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append    
+    } 
+}
+
+
+if ($base -eq "" ) {
+    inspectFolder $folder
+} else {
+    Import-Module ActiveDirectory
+    $GetAdminact = Get-Credential
+    $computers = Get-ADComputer -Filter * -server $server -Credential $GetAdminact -searchbase $base | Select-Object "Name"    
+    $computers | ForEach {
+        $machine = $_.Name
+        Write-Host "export shares from machine: " $machine
+        net view $machine | Select-Object -Skip  7 | Select-Object -SkipLast 2|
+        ForEach-Object -Process {[regex]::replace($_.trim(),'\s+',' ')} |
+        ConvertFrom-Csv -delimiter ' ' -Header 'sharename', 'type', 'usedas', 'comment' |
+        foreach-object {
+            inspectFolder "\\$($machine)\$($_.sharename)"
+        }
     }
 
-    $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append    
-} 
+}
