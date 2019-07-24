@@ -5,8 +5,8 @@ param (
     [string]$server = "",
     [int]$hashlen = 1048576,
     [switch]$force = $false,
-    [switch]$extruct = $false
-    [string] $start = "",
+    [switch]$extruct = $false,
+    [string] $start = ""
  )
  
 
@@ -156,19 +156,9 @@ function Get-MKVS-FileText([String] $FileName, [String] $Extension) {
 #    return $spd # return here instead
 #}
 
-function inspectFolder($f) {
-    $cur = Get-Item $f | 
-    Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length" |
-    Write-Host $_.FullName
-    $acl = Get-Acl $_.FullName | Select-Object -Property "Owner", "Group", "AccessToString", "Sddl"
-    $cur | Add-Member -MemberType NoteProperty -Name ACL -Value $acl -Force
-    $cur | Add-Member -MemberType NoteProperty -Name RootAudit -Value $true -Force
-    $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
-
-    Get-ChildItem $f -Recurse | 
-    Foreach-Object {
-        $cur = $_ | Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length"
-        Write-Host $cur.FullName
+function inspectFile($cur) {
+    $cur = $cur | Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length"
+    Write-Host $cur.FullName
         $acl = Get-Acl $cur.FullName | Select-Object -Property "Owner", "Group", "AccessToString", "Sddl"
         $path = $cur.FullName
         $ext = $cur.Extension
@@ -206,7 +196,30 @@ function inspectFolder($f) {
         $cur | Add-Member -MemberType NoteProperty -Name ACL -Value $acl -Force        
         
         $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append    
-    } 
+}
+
+function inspectFolder($f) {
+    $cur  = Get-Item $f | 
+    Select-Object -Property "Name", "FullName", "BaseName", "CreationTime", "LastAccessTime", "LastWriteTime", "Attributes", "PSIsContainer", "Extension", "Mode", "Length"
+    
+    Write-Host $cur.FullName
+    $acl = Get-Acl $cur.FullName | Select-Object -Property "Owner", "Group", "AccessToString", "Sddl"
+    $cur | Add-Member -MemberType NoteProperty -Name ACL -Value $acl -Force
+    $cur | Add-Member -MemberType NoteProperty -Name RootAudit -Value $true -Force
+    $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
+
+    
+    if ($start -ne "") {
+        Write-Host "start: " $start
+        $starttime = [datetime]::ParseExact($start,'yyyyMMddHHmmss', $null)
+        Get-ChildItem $f -Recurse | ? { $_.LastWriteTime -gt $starttime } | Foreach-Object {
+            inspectFile $_
+        }
+    } else {
+        Get-ChildItem $f -Recurse | Foreach-Object {
+            inspectFile $_
+        }
+    }
 }
 
 
