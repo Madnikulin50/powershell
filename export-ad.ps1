@@ -38,16 +38,42 @@ Write-Host "domain: " $domain.NetBIOSName
 
 $domain | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 
+function Get-ADPrincipalGroupMembershipRecursive() {
+  Param(
+      [string] $dsn,
+      [array]$groups = @()
+  )
+
+  $obj = Get-ADObject -server $server  -Credential $GetAdminact $dsn -Properties memberOf
+
+  foreach( $groupDsn in $obj.memberOf ) {
+
+      $tmpGrp = Get-ADObject -server $server  -Credential $GetAdminact $groupDsn -Properties * | Select-Object "Name", "cn", "distinguishedName", "objectSid", "DisplayName", "memberOf"
+
+      if( ($groups | where { $_.DistinguishedName -eq $groupDsn }).Count -eq 0 ) {
+          $add = $tmpGrp 
+          $groups +=  $tmpGrp           
+          $groups = Get-ADPrincipalGroupMembershipRecursive $groupDsn $groups
+      }
+  }
+
+  return $groups
+}
+
 Get-ADGroup -server $server `
 -Credential $GetAdminact -searchbase $SearchBase `
 -Filter * -Properties * | Where-Object {$_.info -NE 'Migrated'} | Select-Object "Name", "GivenName", "Surname", "sn", "cn", "distinguishedName",
 "whenCreated", "whenChanged", "memberOf", "objectSid", "DisplayName", 
 "sAMAccountName", "StreetAddress", "City", "state", "PostalCode", "Country", "Title",
 "Company", "Description", "Department", "OfficeName", "telephoneNumber", "thumbnailPhoto",
-"Mail", "userAccountControl", "Manager", "ObjectClass" | Foreach-Object {
+"Mail", "userAccountControl", "Manager", "ObjectClass", "logonCount", "UserPrincipalName"| Foreach-Object {
   $cur = $_ 
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
   $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
+  
+  $allGroups = ADPrincipalGroupMembershipRecursive $cur.DistinguishedName 
+  $cur | Add-Member -MemberType NoteProperty -Name AllGroups -Value $allGroups -Force
+
   $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 }
 
@@ -61,7 +87,7 @@ Get-ADUser -server $server `
 "Company", "Description", "Department", "OfficeName", "telephoneNumber", "thumbnailPhoto",
 "Mail", "userAccountControl", "PasswordNeverExpires", "PasswordExpired", "DoesNotRequirePreAuth",
 "CannotChangePassword", "PasswordNotRequired", "TrustedForDelegation", "TrustedToAuthForDelegation",
-"Manager", "Enabled", "lastlogondate", "ObjectClass" | Foreach-Object {
+"Manager", "Enabled", "lastlogondate", "ObjectClass", "logonCount", "LogonHours", "UserPrincipalName" | Foreach-Object {
   $cur = $_  
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
 
@@ -70,6 +96,9 @@ Get-ADUser -server $server `
   }
 
   $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
+
+  $allGroups = ADPrincipalGroupMembershipRecursive $cur.DistinguishedName 
+  $cur | Add-Member -MemberType NoteProperty -Name AllGroups -Value $allGroups -Force
 
   $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 }
@@ -81,11 +110,17 @@ Write-Host "users export finished to: " $outfile
 #"sAMAccountName", "IPv4Address", "IPv6Address", "OperatingSystem", "OperatingSystemHotfix", "OperatingSystemServicePack", "OperatingSystemVersion",
 #"PrimaryGroup", "ManagedBy", "userAccountControl", "Enabled", "lastlogondate", "ObjectClass"
 
-Get-ADComputer -Filter * -Properties * -server $server  `
--Credential $GetAdminact -searchbase $SearchBase | Foreach-Object {
+Get-ADComputer -Filter * -Properties * -server $server  -Credential $GetAdminact -searchbase $SearchBase |
+ Select-Object "Name", "dn", "sn", "cn", "distinguishedName", "whenCreated", "whenChanged", "memberOf", "badPwdCount", "objectSid", "DisplayName", 
+"sAMAccountName", "IPv4Address", "IPv6Address", "OperatingSystem", "OperatingSystemHotfix", "OperatingSystemServicePack", "OperatingSystemVersion",
+"PrimaryGroup", "ManagedBy", "userAccountControl", "Enabled", "lastlogondate", "ObjectClass", "DNSHostName", "ObjectCategory", "LastBadPasswordAttempt"| Foreach-Object {
   $cur = $_
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
-  $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force  
+  $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
+  
+  $allGroups = ADPrincipalGroupMembershipRecursive $cur.DistinguishedName 
+  $cur | Add-Member -MemberType NoteProperty -Name AllGroups -Value $allGroups -Force
+
   $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 }
 
