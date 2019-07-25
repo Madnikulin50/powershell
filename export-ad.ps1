@@ -4,7 +4,8 @@ param (
     [string]$outfilename = 'export_ad',
     [string]$user = "",
     [string]$pwd = "",
-    [switch]$force = $false
+    [switch]$force = $false,
+    [string] $start = ""
  )
 
 Write-Host "base: " $base
@@ -38,6 +39,12 @@ Write-Host "domain: " $domain.NetBIOSName
 
 $domain | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
 
+
+if ($start -ne "") {
+  Write-Host "start: " $start
+  $starttime = [datetime]::ParseExact($start,'yyyyMMddHHmmss', $null)
+}
+
 function Get-ADPrincipalGroupMembershipRecursive() {
   Param(
       [string] $dsn,
@@ -68,6 +75,14 @@ Get-ADGroup -server $server `
 "Company", "Description", "Department", "OfficeName", "telephoneNumber", "thumbnailPhoto",
 "Mail", "userAccountControl", "Manager", "ObjectClass", "logonCount", "UserPrincipalName"| Foreach-Object {
   $cur = $_ 
+  if ($start -ne "") {
+    if ($cur.whenChanged -lt $starttime) {
+      Write-Host "skip " $cur.Name
+      return
+    }
+
+  }
+
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
   $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
   
@@ -89,6 +104,15 @@ Get-ADUser -server $server `
 "CannotChangePassword", "PasswordNotRequired", "TrustedForDelegation", "TrustedToAuthForDelegation",
 "Manager", "Enabled", "lastlogondate", "ObjectClass", "logonCount", "LogonHours", "UserPrincipalName" | Foreach-Object {
   $cur = $_  
+  if ($start -ne "") {
+    if (($cur.whenChanged -lt $starttime) -and ($cur.lastlogondate -lt $starttime)){
+      Write-Host "skip " $cur.Name
+      return
+    }
+    Write-Host "write " $cur.Name
+
+  }
+
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
 
   if ($cur.thumbnailPhoto -ne $null) {
@@ -115,6 +139,14 @@ Get-ADComputer -Filter * -Properties * -server $server  -Credential $GetAdminact
 "sAMAccountName", "IPv4Address", "IPv6Address", "OperatingSystem", "OperatingSystemHotfix", "OperatingSystemServicePack", "OperatingSystemVersion",
 "PrimaryGroup", "ManagedBy", "userAccountControl", "Enabled", "lastlogondate", "ObjectClass", "DNSHostName", "ObjectCategory", "LastBadPasswordAttempt"| Foreach-Object {
   $cur = $_
+  if ($start -ne "") {
+    if (($cur.whenChanged -lt $starttime) -and ($cur.lastlogondate -lt $starttime)) {
+      Write-Host "skip " $cur.Name
+      return
+    }
+    Write-Host "write " $cur.Name
+
+  }
   $ntname = "$($domain.NetBIOSName)\$($cur.sAMAccountName)"
   $cur | Add-Member -MemberType NoteProperty -Name NTName -Value $ntname -Force
   
