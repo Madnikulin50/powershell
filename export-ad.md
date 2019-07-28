@@ -1,8 +1,10 @@
 ## Экспорт пользователей, групп и компьютеров из AD
 
-### Подготовка
-
-- Перед запуском должен быть установлен Remote Server Administration Tools for Windows 10 (или другой для соответвующей версии ОС)
+### Требования для использования
++ Операционная система Windows 7+, Windows 2012+. Рекомендуемая Windows 10x64.1803+, Windows 2019x64
++ Windows PowerShell 5+, Рекомендуется Windows PowerShell 5.1
++ Remote Server Administration Tools for Windows 10 (или другой для соответвующей версии ОС)
++ Права на чтение данных из ActiveDirectory
 
 ### Запуск
 
