@@ -1,8 +1,14 @@
 ## Сбор данных о файлах в папке
 
-### Подготовка
+## Сбор событий EventLog c удаленных рабочих станций
 
-- Не требуется
+### Требования для использования
++ Операционная система Windows 7+, Windows 2012+. Рекомендуемая Windows 10x64.1803+, Windows 2019x64
++ Windows PowerShell 5+, Рекомендуется Windows PowerShell 5.1
++ Remote Server Administration Tools for Windows 10 (или другой для соответвующей версии ОС)
++ Права на чтение файлов из инспектируемых файлов и папок
++ + Права на чтение данных из ActiveDirectory (Read all user information) [Дополнительно](https://social.technet.microsoft.com/Forums/en-US/c8b5886a-f0f1-4e20-b083-d36521d4dec6/delegation-to-read-all-users-properties-in-the-domain?forum=winserverDS)
+
 
 ### Запуск
 
