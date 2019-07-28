@@ -1,8 +1,10 @@
 ## Сбор событий EventLog c удаленных рабочих станций
 
-### Подготовка
-
-- Не требуется
+### Требования для использования
++ Операционная система Windows 7+, Windows 2012+. Рекомендуемая Windows 10x64.1803+, Windows 2019x64
++ Windows PowerShell 5+, Рекомендуется Windows PowerShell 5.1
++ Remote Server Administration Tools for Windows 10 (или другой для соответвующей версии ОС)
++ Права на чтение удаленного EventLog [Дополнительно](https://support.microsoft.com/ru-ru/help/323076/how-to-set-event-log-security-locally-or-by-using-group-policy)
 
 ### Запуск
 
