@@ -9,7 +9,7 @@
 
 Пример запуска
 ```
-powershell.exe -ExecutionPolicy Bypass -Command "./export_mb_folders.ps1" -outfile folders.csv
+"./export_mb_folders.ps1" -outfile mailboxes
 ```
 Параметры:
 
