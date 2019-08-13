@@ -26,8 +26,21 @@ foreach-object {
             $cs = $_ | ConvertTo-Json
             Write-Host "Statistic: " $cs
         }
-        $cur | Add-Member -MemberType NoteProperty -Name S -Value $s -Force
+        $cur | Add-Member -MemberType NoteProperty -Name Statistic -Value $s -Force
         
+        try{
+            $uc= Get-MailboxUserConfiguration -Identity ($cur.alias)
+            if ($uc -ne $null) {
+
+              Write-Host "UserConfiguration: " $uc
+              $cur | Add-Member -MemberType NoteProperty -Name UserConfiguration -Value $uc -Force
+            }
+        }
+        Catch {
+            $msg = "Error + $PSItem.Exception.InnerExceptionMessage"
+            Write-Host $msg -ForegroundColor Red
+        }
+
         $p = Get-MailboxPermission -Identity ($cur.alias) | Select Identity, User, AccessRights
         if ($p -ne $null) {
 
@@ -36,9 +49,9 @@ foreach-object {
             if ($t.length -ne 1) {
                 $t += ","
             }
-            $t += "{Identity: '$($_.Identity)',"
-            $t += "User: '$($_.User)',"
-            $t += "AccessRights: '$($_.AccessRights)'}"
+            $t += "{\`"Identity\`": \`"$($_.Identity)\`","
+            $t += "\`"User\`": \`"$($_.User)\`","
+            $t += "\`"AccessRights\`": \`"$($_.AccessRights)\`"}"
           }
           $t += ","
           Write-Host "permision: " $t
@@ -54,10 +67,10 @@ foreach-object {
             if ($t.length -ne 1) {
                 $t += ","
             }
-            $t += "{Identity: '$($_.Identity)',"
-            $t += "FolderName: '$($_.FolderName)',"
-            $t += "User: '$($_.User)',"
-            $t += "AccessRights: '$($_.AccessRights)'}"
+            $t += "{\`"Identity\`": \`"$($_.Identity)\`","
+            $t += "\`"FolderName\`": \`"$($_.FolderName)\`","
+            $t += "\`"User\`": \`"$($_.User)\`","
+            $t += "\`"AccessRights\`": \`"$($_.AccessRights)\`"}"
           }
           $t += ","
           Write-Host "folder permision: " $t
