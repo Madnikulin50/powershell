@@ -49,11 +49,11 @@ foreach-object {
             if ($t.length -ne 1) {
                 $t += ","
             }
-            $t += "{\`"Identity\`": \`"$($_.Identity)\`","
-            $t += "\`"User\`": \`"$($_.User)\`","
-            $t += "\`"AccessRights\`": \`"$($_.AccessRights)\`"}"
+            $t += "{`"Identity`": `"$($_.Identity)`","
+            $t += "`"User`": `"$($_.User)`","
+            $t += "`"AccessRights`": `"$($_.AccessRights)`"}"
           }
-          $t += ","
+          $t += "]"
           Write-Host "permision: " $t
           $cur | Add-Member -MemberType NoteProperty -Name Permissions -Value $t -Force
         }
@@ -67,17 +67,17 @@ foreach-object {
             if ($t.length -ne 1) {
                 $t += ","
             }
-            $t += "{\`"Identity\`": \`"$($_.Identity)\`","
-            $t += "\`"FolderName\`": \`"$($_.FolderName)\`","
-            $t += "\`"User\`": \`"$($_.User)\`","
-            $t += "\`"AccessRights\`": \`"$($_.AccessRights)\`"}"
+            $t += "{`"Identity`": `"$($_.Identity)`","
+            $t += "`"FolderName`": `"$($_.FolderName)`","
+            $t += "`"User`": `"$($_.User)`","
+            $t += "`"AccessRights`": `"$($_.AccessRights)`"}"
           }
-          $t += ","
+          $t += "]"
           Write-Host "folder permision: " $t
           $cur | Add-Member -MemberType NoteProperty -Name FolderPermissions -Value $t -Force
         }
     
-        $cur | Add-Member -MemberType NoteProperty -Name F -Value $fstat -Force
+        $cur | Add-Member -MemberType NoteProperty -Name Folders -Value $fstat -Force
         $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
    }
    Catch {
