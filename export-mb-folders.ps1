@@ -1,5 +1,5 @@
 param (
-    [string]$outfilename = "C:\temp\Maks\explore-mailboxes"    
+    [string]$outfilename = ".\explore-mailboxes"    
  )
  
 
