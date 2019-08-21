@@ -8,6 +8,8 @@ Param(
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $pwd = "",
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $start = "",
     [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $fwd = "",
+    [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $syslog = "",
+    [Parameter(Mandatory = $False, Position = 7, ParameterSetName = "NormalRun")] $syslog_port = 514,
     [Parameter(Mandatory = $False, Position = 10, ParameterSetName = "NormalRun")] [ValidateSet("All","Logon","Service","User","Computer", "Clean", "File", "MSSQL", "RAS", "USB", "Printer", "Sysmon", "TS")] [array]$target="All"
 )
 
@@ -41,22 +43,33 @@ if ($user -ne "") {
     $GetAdminact = Get-Credential
 }
 
-<# ------- SCRIPT_HEADER (Only Get-Help comments and Param() above this point) ------- #>
-#Initializing a $Stopwatch variable to use to measure script execution
-$stopwatch = [system.diagnostics.stopwatch]::StartNew()
-#Using Write-Debug and playing with $DebugPreference -> "Continue" will output whatever you put on Write-Debug "Your text/values"
-# and "SilentlyContinue" will output nothing on Write-Debug "Your text/values"
-$DebugPreference = "Continue"
-# Set Error Action to your needs
-$ErrorActionPreference = "SilentlyContinue"
-#Script Version
-<# ---------------------------- /SCRIPT_HEADER ---------------------------- #>
 
-<# -------------------------- DECLARATIONS -------------------------- #>
+$stopwatch = [system.diagnostics.stopwatch]::StartNew()
+$DebugPreference = "Continue"
+$ErrorActionPreference = "SilentlyContinue"
+
 $FilterHashProperties = $null
 $Answer = ""
-<# /DECLARATIONS #>
-<# -------------------------- FUNCTIONS -------------------------- #>
+
+
+
+if ($syslog -ne "") {
+    Write-Host "syslog: " $syslog
+    Import-Module (Join-Path $PSScriptRoot "Send-SyslogMessage.ps1")   
+   
+}
+
+function SendSyslog($event) {
+    try {
+        Send-SyslogMessage -Server $syslog -Message $event.Message -Severity "Informational" -Facility "logaudit" -Hostname $env:COMPUTERNAME -ApplicationName "EventLog" -MessageID $event.Id    
+        # -Timestamp $event.TimeGenerated
+    } catch {
+        Write-Host ($event | Co)
+        $msg = "Error send to syslog $PSItem.Exception.InnerExceptionMessage"
+        Write-Host $msg
+    }
+}
+
 function IsEmpty($Param){
     If ($Param -eq "All" -or $Param -eq "" -or $Param -eq $Null -or $Param -eq 0) {
         Return $True
@@ -66,8 +79,6 @@ function IsEmpty($Param){
 }
 
 
-<# /FUNCTIONS #>
-<# -------------------------- EXECUTIONS -------------------------- #>
 Write-Host "Starting script..."
 function ExportFor($eid, $ln, $type) {
 
@@ -77,17 +88,21 @@ function ExportFor($eid, $ln, $type) {
 
     Write-Host "logname:" $ln
     Write-Host "type: " $type
+   
+    
 
     $FilterHashProperties = @{
         LogName = $ln
     }
     
     if ($start -ne "") {
+        Write-Host "start: " $start
         $starttime = [datetime]::ParseExact($start,'yyyyMMddHHmmss', $null)
         $FilterHashProperties.Add("startTime", $starttime)
     }
 
     If (!(IsEmpty $eid)){
+        Write-Host "eid: " $eid
         $FilterHashProperties.Add("ID",$eid)
     }
  
@@ -106,9 +121,17 @@ function ExportFor($eid, $ln, $type) {
             $Events | Select-Object -first $NumberOfLastEventsToGet
             $Events | Foreach-Object {
                 $cur = $_ 
-                $xml = $_.ToXml()
-                $cur | Add-Member -MemberType NoteProperty -Name XML -Value $xml -Force
-                $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append 
+                try {
+                    $xml = $_.ToXml()
+                    $cur | Add-Member -MemberType NoteProperty -Name XML -Value $xml -Force
+                } Catch {
+                    Write-Host "error create xml" -ForegroundColor Red
+                }
+                
+                $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append
+                if ($syslog -ne "") {
+                    SendSyslog($cur)
+                } 
             }
             Write-host "Found at least $($Events.count) events ! Here are the $NumberOfLastEventsToGet last ones"
                 
@@ -122,9 +145,18 @@ function ExportFor($eid, $ln, $type) {
                 $Events | Select-Object -first $NumberOfLastEventsToGet
                 $Events | Foreach-Object {
                     $cur = $_ 
-                    $xml = $_.ToXml()
+                    try {
+                        $xml = $_.ToXml()
+                        $cur | Add-Member -MemberType NoteProperty -Name XML -Value $xml -Force
+                    } Catch {
+                        Write-Host "error create xml" -ForegroundColor Red
+                    }
+                    
                     $cur | Add-Member -MemberType NoteProperty -Name XML -Value $xml -Force
                     $cur | ConvertTo-Json | Out-File -FilePath $outfile -Encoding UTF8 -Append 
+                    if ($syslog -ne "") {
+                        SendSyslog($cur)
+                    } 
                 }
                 
             }
@@ -191,16 +223,6 @@ Foreach ($i in $target)
     }
 }
 
+Write-host "I'm done. I exported the results to a file located on the same directory as the Script"
 
-
-$msg = "I'm done. I exported the results to a file located on the same directory as the Script"
-Write-host $msg
-
-<# /EXECUTIONS #>
-<# ---------------------------- SCRIPT_FOOTER ---------------------------- #>
-#Stopping StopWatch and report total elapsed time (TotalSeconds, TotalMilliseconds, TotalMinutes, etc...)
-$stopwatch.Stop()
-$msg = "The script took $($StopWatch.Elapsed.TotalSeconds) seconds to execute..."
-Write-Host $msg
-
-<# ---------------- /SCRIPT_FOOTER (NOTHING BEYOND THIS POINT) ----------- #>
+Write-Host "The script took $($StopWatch.Elapsed.TotalSeconds) seconds to execute..."
