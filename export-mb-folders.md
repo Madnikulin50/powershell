@@ -9,7 +9,7 @@
 
 Пример запуска
 ```
-./export-mb-folders.ps1 -outfile mailboxes
+./export-mb-folders.ps1 -outfilename mailboxes
 ```
 Параметры:
 
